@@ -15,6 +15,10 @@ lexicographically-sortable alternative to UUIDs.
   Represents a ULID string.
 }
 
+@defthing[ulid-bytes/c bytes?]{
+  Represents the binary representation of a ULID.
+}
+
 @defproc[(make-ulid-factory) (-> (and/c ulid/c immutable?))]{
   Returns a function that can be used to generate ULIDs.  Any ULIDs
   generated within the same millisecond by the resulting function will
@@ -33,4 +37,13 @@ lexicographically-sortable alternative to UUIDs.
 
 @defproc[(ulid-randomness [s ulid/c]) exact-nonnegative-integer?]{
   Returns the random component of the ULID @racket[s].
+}
+
+@defproc[(ulid->bytes [u ulid/c]) ulid-bytes/c]{
+  Returns the binary representation of the ULID @racket[u].
+}
+
+@defproc[(bytes->ulid [bs ulid-bytes/c]) ulid/c]{
+  Converts @racket[bs] to a ULID.  Raises an error if the result is
+  not a valid ULID.
 }
