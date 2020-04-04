@@ -1,0 +1,19 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Install Racket
+      uses: Bogdanp/setup-racket@master
+      with:
+        version: "7.6"
+
+    - name: Install pkg and deps
+      run: raco pkg install --batch --auto --name ulid
+
+    - name: Run tests
+      run: raco test .
