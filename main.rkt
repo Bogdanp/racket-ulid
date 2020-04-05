@@ -114,13 +114,9 @@
                         (= (bytes-length bs) 16)))))
 
 (define (ulid->bytes s)
-  (define t (ulid-time s))
-  (define r (ulid-randomness s))
   (bytes-append
-   (pack (arithmetic-shift t -16) 4)
-   (pack t 2)
-   (pack (arithmetic-shift r -64) 2)
-   (pack r 8)))
+   (pack (ulid-time s) 6)
+   (pack (ulid-randomness s) 10)))
 
 (define (bytes->ulid bs)
   (make-ulid-string
