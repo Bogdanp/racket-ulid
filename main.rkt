@@ -24,7 +24,7 @@
 ;; millisecond can effectively never exhaust the randomness space.
 ;; This diverges from the spec, but is still compatible with it.
 (define RANDOMNESS_MASK
-  #x01111111111111111111111111111111111111111111111111111111111111111111111111111111)
+  #b01111111111111111111111111111111111111111111111111111111111111111111111111111111)
 
 (define (pad s w)
   (~a s #:width w #:align 'right #:left-pad-string "0"))
