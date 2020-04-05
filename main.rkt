@@ -2,9 +2,8 @@
 
 (require racket/contract
          racket/format
-         racket/match
-         racket/random
-         "base32.rkt")
+         "private/base32.rkt"
+         "private/random.rkt")
 
 
 ;; core ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -20,34 +19,39 @@
 (define MAX_TIME_COMPONENT
   (sub1 (expt 2 48)))
 
-(define MAX_RANDOM_COMPONENT
-  (sub1 (expt 2 80)))
-
-(define (randomness)
-  (unpack (crypto-random-bytes 10)))
+;; We zero out the most significant bit of the randomness component to
+;; guarantee that monotonically-generated ids during the same
+;; millisecond can effectively never exhaust the randomness space.
+;; This diverges from the spec, but is still compatible with it.
+(define RANDOMNESS_MASK
+  #x01111111111111111111111111111111111111111111111111111111111111111111111111111111)
 
 (define (pad s w)
   (~a s #:width w #:align 'right #:left-pad-string "0"))
 
 (define (make-ulid-factory)
-  (define s (box (cons -1 #f)))
+  (define sema (make-semaphore 1))
+  (define rs (make-randomness-source (add1 (* 1 1000 1000))))
+  (define (randomness)
+    (bitwise-and
+     (unpack (randomness-take! rs 10))
+     RANDOMNESS_MASK))
+
+  (define ot -1)
+  (define on 0)
   (lambda ()
     (define-values (t n)
-      (let loop ([t (current-milliseconds)])
-        (define os (unbox s))
-        (match-define (cons ot on) os)
+      (call-with-semaphore sema
+        (lambda ()
+          (define t (current-milliseconds))
+          (define n
+            (if (= ot t)
+                (add1 on)
+                (randomness)))
 
-        (define n
-          (if (= ot t)
-              (add1 on)
-              (randomness)))
-
-        (if (box-cas! s os (cons t n))
-            (values t n)
-            (loop))))
-
-    (when (> n MAX_RANDOM_COMPONENT)
-      (error 'ulid "exhausted"))
+          (begin0 (values t n)
+            (set! ot t)
+            (set! on n)))))
 
     (make-ulid-string t n)))
 
@@ -69,7 +73,7 @@
 (define (ulid-time s)
   (define t (base32-string->number (substring s 0 10)))
   (begin0 t
-    (when (> t (sub1 (expt 2 48)))
+    (when (> t MAX_TIME_COMPONENT)
       (raise-argument-error 'ulid-time "a ULID with a valid time component" s))))
 
 (define (ulid-randomness s)
@@ -139,7 +143,6 @@
     (+ (arithmetic-shift n 8) b)))
 
 (module+ test
-
   (define gen:ulid
     (gen:let ([t1 (gen:integer-in 0 #xFFFFFF)]
               [t2 (gen:integer-in 0 #xFFFFFF)]
